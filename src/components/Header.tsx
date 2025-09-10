@@ -1,88 +1,86 @@
 "use client";
 
 import React from "react";
-import GlassLens from "./GlassLens";
-import Link from "next/link";
-import Image from "next/image";
 
-// Augment the Window type so we can assign __skipHeroIntercept safely
-declare global {
-  interface Window {
-    __skipHeroIntercept?: number;
-  }
-}
+/**
+ * Fix for build error:
+ *   Type '({ kind: string; label: string; } | { kind: string; tag: string; title: string; })[]'
+ *   is not assignable to type '({ kind: "strategy"; label: string; } | { kind: "exec"; tag: string; title: string; })[]'.
+ *
+ * Root cause: the `kind` property was inferred as a generic `string` rather than the
+ * string literals "strategy" | "exec", so the discriminated union couldn't narrow.
+ *
+ * Solution: define literal-typed step shapes and ensure array items keep literal kinds.
+ */
 
-export default function Header() {
-  const handleNav =
-    (id: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
-      e.preventDefault();
-      // type-safe assignment (removes the need for `any` casting)
-      window.__skipHeroIntercept = Date.now() + 1500; // bypass first-scroll logic for 1.5s
-      const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
+// 1) Define the literal, discriminated union types
+export type StrategyStep = { kind: "strategy"; label: string };
+export type ExecStep = { kind: "exec"; tag: string; title: string };
+export type Step = StrategyStep | ExecStep;
 
+// 2) Optional helpers to create steps without widening `kind`
+const strategy = (label: string): StrategyStep => ({ kind: "strategy", label });
+const exec = (tag: string, title: string): ExecStep => ({ kind: "exec", tag, title });
+
+// 3) Define your steps using the helpers (or add `as const` on each `kind` value)
+//    Replace the example items below with your actual content.
+const STEPS: Step[] = [
+  strategy("Discovery & Goals"),
+  strategy("Roadmapping"),
+  exec("design", "Design & Content"),
+  exec("build", "Development"),
+  exec("launch", "QA, Deploy, Iterate"),
+];
+
+export default function ProcessExperience() {
   return (
-    <header className="fixed top-4 inset-x-0 z-[9999] flex justify-center pointer-events-none h-16">
-      <div
-        className="relative pointer-events-auto rounded-full px-6 bg-white/10 ring-1 ring-white/20 shadow-[0_8px_24px_rgba(2,6,23,0.25)] overflow-hidden h-16 flex items-center"
-        style={{ width: "min(92vw, 1000px)" }}
-      >
-        {/* WebGL lens behind the nav content */}
-        <GlassLens enableHover enableRipple magnify={2.6} />
+    <section id="process" className="mx-auto max-w-5xl px-6 py-16">
+      <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-8">How we work</h2>
 
-        {/* Nav content above the lens */}
-        <div className="relative z-10 w-full">
-          <div className="flex h-full w-full items-center justify-between gap-4 sm:gap-8">
-            <div className="flex items-center">
-              <Link href="/" className="inline-flex items-center" aria-label="Overly">
-                <Image
-                  src="/OverlyLogo.svg"
-                  alt="Overly logo"
-                  width={110}
-                  height={40}
-                  className="invert block"
-                  priority
-                />
-              </Link>
-            </div>
-            <nav
-              role="navigation"
-              aria-label="Primary"
-              className="flex items-center gap-6 sm:gap-8 text-sm leading-none"
+      <ol className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {STEPS.map((step, idx) => {
+          if (step.kind === "strategy") {
+            return (
+              <li
+                key={`s-${idx}-${step.label}`}
+                className="rounded-2xl ring-1 ring-white/15 bg-white/5 p-5"
+              >
+                <div className="text-xs uppercase tracking-widest opacity-70">Strategy</div>
+                <div className="text-base sm:text-lg font-medium mt-1">{step.label}</div>
+              </li>
+            );
+          }
+
+          // exec
+          return (
+            <li
+              key={`e-${idx}-${step.tag}`}
+              className="rounded-2xl ring-1 ring-white/15 bg-white/5 p-5"
             >
-              <Link
-                className="text-blue-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 rounded font-medium transition-transform hover:scale-110"
-                href="/#process"
-                onClick={handleNav("process")}
-              >
-                Work
-              </Link>
-              <Link
-                className="text-blue-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 rounded font-medium transition-transform hover:scale-110"
-                href="/#capabilities"
-                onClick={handleNav("capabilities")}
-              >
-                Services
-              </Link>
-              <Link
-                className="text-blue-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 rounded font-medium transition-transform hover:scale-110"
-                href="/#about"
-                onClick={handleNav("about")}
-              >
-                About
-              </Link>
-              <Link
-                className="text-blue-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 rounded font-medium transition-transform hover:scale-110"
-                href="/#contact"
-                onClick={handleNav("contact")}
-              >
-                Contact
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </div>
-    </header>
+              <div className="text-xs uppercase tracking-widest opacity-70">Execution</div>
+              <div className="text-base sm:text-lg font-medium mt-1">{step.title}</div>
+              <div className="text-sm opacity-70 mt-1">#{step.tag}</div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
+
+/**
+ * If you prefer to keep your existing `STEPS` array, a minimal patch is to add
+ * `as const` to the `kind` values so they are treated as string literals:
+ *
+ *   const STEPS: Step[] = [
+ *     { kind: "strategy" as const, label: "..." },
+ *     { kind: "exec" as const, tag: "design", title: "Design" },
+ *   ];
+ *
+ * Or validate with `satisfies` (keeps literal types, no widening):
+ *
+ *   const STEPS = [
+ *     { kind: "strategy" as const, label: "..." },
+ *     { kind: "exec" as const, tag: "design", title: "Design" },
+ *   ] satisfies Step[];
+ */
