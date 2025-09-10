@@ -5,13 +5,22 @@ import GlassLens from "./GlassLens";
 import Link from "next/link";
 import Image from "next/image";
 
+// Augment the Window type so we can assign __skipHeroIntercept safely
+declare global {
+  interface Window {
+    __skipHeroIntercept?: number;
+  }
+}
+
 export default function Header() {
-  const handleNav = (id: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    (window as any).__skipHeroIntercept = Date.now() + 1500; // bypass first-scroll logic for 1.5s
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  const handleNav =
+    (id: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
+      e.preventDefault();
+      // type-safe assignment (removes the need for `any` casting)
+      window.__skipHeroIntercept = Date.now() + 1500; // bypass first-scroll logic for 1.5s
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
 
   return (
     <header className="fixed top-4 inset-x-0 z-[9999] flex justify-center pointer-events-none h-16">
